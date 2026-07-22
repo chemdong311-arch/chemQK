@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>화학 평형 시뮬레이터 (2A + B ⇄ C + 3D)</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;600;700&display=swap');
+        body {
+            font-family: 'Pretendard', sans-serif;
+        }
+        .math-font {
+            font-family: 'Times New Roman', Times, serif;
+            font-style: italic;
+        }
+        canvas {
+            touch-action: none;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-slate-800 border-b border-slate-700 px-6 py-4 shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="p-2.5 bg-indigo-600 rounded-xl text-white shadow-md">
+                    <i class="fa-solid font-bold fa-flask-vial text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight text-white">화학 평형 & 르샤틀리에 원리 시뮬레이터</h1>
+                    <p class="text-xs text-slate-400">반응식: <span class="math-font text-yellow-400 font-bold">2A(g) + B(g) ⇌ C(g) + 3D(g)</span></p>
+                </div>
+            </div>
+
+            <!-- Reaction Status Badge -->
+            <div id="statusBadge" class="flex items-center gap-3 px-4 py-2 rounded-xl bg-slate-700/80 border border-slate-600 transition-all">
+                <div id="statusDot" class="w-3 h-3 rounded-full bg-emerald-400 animate-pulse"></div>
+                <div class="text-sm">
+                    <span class="text-slate-400">진행 상태:</span>
+                    <span id="statusText" class="font-bold text-emerald-400 ml-1">동적 평형 상태 (Q = K)</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto w-full p-4 md:p-6 flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- Top Metrics Cards (Q, K, P, T, V) -->
+        <div class="lg:col-span-12 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+            <div class="bg-slate-800/90 border border-slate-700 rounded-2xl p-4 flex flex-col justify-between shadow-md">
+                <div class="text-xs font-semibold text-slate-400 flex justify-between items-center">
+                    <span>반응 지수 (Q)</span>
+                    <i class="fa-solid fa-gauge-high text-indigo-400"></i>
+                </div>
+                <div id="valQ" class="text-2xl font-bold text-indigo-400 mt-2 font-mono">1.000</div>
+                <div class="text-[10px] text-slate-500 mt-1">[C][D]³ / ([A]²[B])</div>
+            </div>
+
+            <div class="bg-slate-800/90 border border-slate-700 rounded-2xl p-4 flex flex-col justify-between shadow-md">
+                <div class="text-xs font-semibold text-slate-400 flex justify-between items-center">
+                    <span>평형 상수 (K)</span>
+                    <i class="fa-solid fa-scale-balanced text-emerald-400"></i>
+                </div>
+                <div id="valK" class="text-2xl font-bold text-emerald-400 mt-2 font-mono">1.000</div>
+                <div class="text-[10px] text-slate-500 mt-1">온도(T)만의 함수</div>
+            </div>
+
+            <div class="bg-slate-800/90 border border-slate-700 rounded-2xl p-4 flex flex-col justify-between shadow-md">
+                <div class="text-xs font-semibold text-slate-400 flex justify-between items-center">
+                    <span>전체 압력 (P)</span>
+                    <i class="fa-solid fa-compress-arrows-alt text-amber-400"></i>
+                </div>
+                <div id="valP" class="text-2xl font-bold text-amber-400 mt-2 font-mono">1.00 atm</div>
+                <div class="text-[10px] text-slate-500 mt-1">P = n_total · R · T / V</div>
+            </div>
+
+            <div class="bg-slate-800/90 border border-slate-700 rounded-2xl p-4 flex flex-col justify-between shadow-md">
+                <div class="text-xs font-semibold text-slate-400 flex justify-between items-center">
+                    <span>절대 온도 (T)</span>
+                    <i class="fa-solid fa-temperature-three-quarters text-rose-400"></i>
+                </div>
+                <div id="valT" class="text-2xl font-bold text-rose-400 mt-2 font-mono">300 K</div>
+                <div class="text-[10px] text-slate-500 mt-1">약 27 °C</div>
+            </div>
+
+            <div class="bg-slate-800/90 border border-slate-700 rounded-2xl p-4 flex flex-col justify-between shadow-md col-span-2 sm:col-span-1">
+                <div class="text-xs font-semibold text-slate-400 flex justify-between items-center">
+                    <span>용기 부피 (V)</span>
+                    <i class="fa-solid fa-box text-cyan-400"></i>
+                </div>
+                <div id="valV" class="text-2xl font-bold text-cyan-400 mt-2 font-mono">5.0 L</div>
+                <div class="text-[10px] text-slate-500 mt-1">기체 이동 공간</div>
+            </div>
+        </div>
+
+        <!-- Left Section: 2D Particle Animation Container -->
+        <div class="lg:col-span-5 flex flex-col gap-4">
+            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4 flex flex-col h-[480px] shadow-lg relative overflow-hidden">
+                <div class="flex justify-between items-center mb-3">
+                    <h2 class="text-sm font-bold text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-atom text-indigo-400"></i>
+                        실시간 입자 모델 (피스톤 용기)
+                    </h2>
+                    <span class="text-xs bg-slate-700 text-slate-300 px-2 py-1 rounded-md">몰 수 변화 반응</span>
+                </div>
+
+                <!-- Canvas Box -->
+                <div class="relative flex-1 bg-slate-950 rounded-xl border border-slate-800 overflow-hidden flex flex-col justify-end" id="pistonContainer">
+                    <canvas id="particleCanvas" class="w-full h-full block"></canvas>
+                </div>
+
+                <!-- Particle Legend -->
+                <div class="grid grid-cols-4 gap-2 mt-3 text-center text-xs">
+                    <div class="bg-slate-900/80 p-2 rounded-lg border border-cyan-500/30">
+                        <span class="inline-block w-2.5 h-2.5 rounded-full bg-cyan-400 mr-1"></span>
+                        <span class="font-bold text-cyan-300">A</span>: <span id="countA" class="font-mono">0</span> mol
+                    </div>
+                    <div class="bg-slate-900/80 p-2 rounded-lg border border-purple-500/30">
+                        <span class="inline-block w-2.5 h-2.5 rounded-full bg-purple-400 mr-1"></span>
+                        <span class="font-bold text-purple-300">B</span>: <span id="countB" class="font-mono">0</span> mol
+                    </div>
+                    <div class="bg-slate-900/80 p-2 rounded-lg border border-amber-500/30">
+                        <span class="inline-block w-2.5 h-2.5 rounded-full bg-amber-400 mr-1"></span>
+                        <span class="font-bold text-amber-300">C</span>: <span id="countC" class="font-mono">0</span> mol
+                    </div>
+                    <div class="bg-slate-900/80 p-2 rounded-lg border border-rose-500/30">
+                        <span class="inline-block w-2.5 h-2.5 rounded-full bg-rose-400 mr-1"></span>
+                        <span class="font-bold text-rose-300">D</span>: <span id="countD" class="font-mono">0</span> mol
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Section: Real-time Graphs -->
+        <div class="lg:col-span-7 flex flex-col gap-4">
+            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4 h-[480px] flex flex-col shadow-lg">
+                <div class="flex justify-between items-center mb-2">
+                    <h2 class="text-sm font-bold text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-chart-line text-emerald-400"></i>
+                        실시간 Q vs K & 몰 농도 추이
+                    </h2>
+                    <div class="flex gap-2">
+                        <button id="btnLogScale" class="text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 px-2 py-1 rounded transition">
+                            스케일: 로그(Log)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Graphs Container (Tab view or Split view) -->
+                <div class="grid grid-rows-2 gap-3 flex-1 h-full min-h-0">
+                    <div class="relative bg-slate-950 p-2 rounded-xl border border-slate-800 min-h-0">
+                        <canvas id="qkChart"></canvas>
+                    </div>
+                    <div class="relative bg-slate-950 p-2 rounded-xl border border-slate-800 min-h-0">
+                        <canvas id="concChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Controls & Presets Section -->
+        <div class="lg:col-span-12 grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+            <!-- Presets Panel -->
+            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-lg flex flex-col justify-between">
+                <div>
+                    <h3 class="text-sm font-bold text-slate-200 mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-wand-magic-sparkles text-amber-400"></i>
+                        르샤틀리에 원리 실험 시나리오
+                    </h3>
+                    <p class="text-xs text-slate-400 mb-4">버튼을 클릭하여 평형에 외란(Perturbation)을 가하고 $Q$와 $K$의 변화를 관찰해보세요.</p>
+                    
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="applyPreset('addA')" class="p-2.5 bg-slate-700/70 hover:bg-indigo-600/50 border border-slate-600 hover:border-indigo-500 rounded-xl text-xs text-left transition flex items-center gap-2">
+                            <i class="fa-solid fa-plus text-cyan-400"></i>
+                            <div>
+                                <div class="font-bold text-white">반응물 [A] 주입</div>
+                                <div class="text-[10px] text-slate-400">Q &lt; K → 정반응</div>
+                            </div>
+                        </button>
+                        <button onclick="applyPreset('addD')" class="p-2.5 bg-slate-700/70 hover:bg-indigo-600/50 border border-slate-600 hover:border-indigo-500 rounded-xl text-xs text-left transition flex items-center gap-2">
+                            <i class="fa-solid fa-plus text-rose-400"></i>
+                            <div>
+                                <div class="font-bold text-white">생성물 [D] 주입</div>
+                                <div class="text-[10px] text-slate-400">Q &gt; K → 역반응</div>
+                            </div>
+                        </button>
+                        <button onclick="applyPreset('compress')" class="p-2.5 bg-slate-700/70 hover:bg-indigo-600/50 border border-slate-600 hover:border-indigo-500 rounded-xl text-xs text-left transition flex items-center gap-2">
+                            <i class="fa-solid fa-compress text-amber-400"></i>
+                            <div>
+                                <div class="font-bold text-white">부피 압축 (부피½)</div>
+                                <div class="text-[10px] text-slate-400">압력↑ → 기체분자↓(역)</div>
+                            </div>
+                        </button>
+                        <button onclick="applyPreset('expand')" class="p-2.5 bg-slate-700/70 hover:bg-indigo-600/50 border border-slate-600 hover:border-indigo-500 rounded-xl text-xs text-left transition flex items-center gap-2">
+                            <i class="fa-solid fa-expand text-cyan-400"></i>
+                            <div>
+                                <div class="font-bold text-white">부피 팽창 (부피 2배)</div>
+                                <div class="text-[10px] text-slate-400">압력↓ → 기체분자↑(정)</div>
+                            </div>
+                        </button>
+                        <button onclick="applyPreset('heat')" class="p-2.5 bg-slate-700/70 hover:bg-indigo-600/50 border border-slate-600 hover:border-indigo-500 rounded-xl text-xs text-left transition flex items-center gap-2">
+                            <i class="fa-solid fa-fire text-rose-400"></i>
+                            <div>
+                                <div class="font-bold text-white">온도 상승 (가열)</div>
+                                <div class="text-[10px] text-slate-400">K 변동 (발열/흡열)</div>
+                            </div>
+                        </button>
+                        <button onclick="applyPreset('cool')" class="p-2.5 bg-slate-700/70 hover:bg-indigo-600/50 border border-slate-600 hover:border-indigo-500 rounded-xl text-xs text-left transition flex items-center gap-2">
+                            <i class="fa-solid fa-snowflake text-cyan-300"></i>
+                            <div>
+                                <div class="font-bold text-white">온도 하강 (냉각)</div>
+                                <div class="text-[10px] text-slate-400">K 변동 (발열/흡열)</div>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Simulation Reset & Pause -->
+                <div class="flex gap-2 mt-4">
+                    <button id="btnPause" onclick="togglePause()" class="flex-1 py-2 bg-slate-700 hover:bg-slate-600 rounded-xl text-xs font-bold text-white transition flex items-center justify-center gap-2">
+                        <i id="pauseIcon" class="fa-solid fa-pause"></i>
+                        <span id="pauseText">일시정지</span>
+                    </button>
+                    <button onclick="resetSimulation()" class="py-2 px-4 bg-rose-600/80 hover:bg-rose-600 rounded-xl text-xs font-bold text-white transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-rotate-left"></i>
+                        초기화
+                    </button>
+                </div>
+            </div>
+
+            <!-- Reaction Control Variables Sliders -->
+            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-lg flex flex-col justify-between">
+                <div>
+                    <h3 class="text-sm font-bold text-slate-200 mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-sliders text-cyan-400"></i>
+                        환경 변수 조절 (온도, 부피, 열 반응)
+                    </h3>
+
+                    <!-- Enthalpy Toggle -->
+                    <div class="mb-4 bg-slate-900/60 p-3 rounded-xl border border-slate-700 flex justify-between items-center">
+                        <div class="text-xs">
+                            <span class="font-bold text-slate-200">반응 엔탈피 (ΔH):</span>
+                            <span id="enthalpyText" class="text-rose-400 font-semibold ml-1">발열 반응 (ΔH < 0)</span>
+                        </div>
+                        <button onclick="toggleEnthalpy()" class="text-xs bg-slate-700 hover:bg-indigo-600 text-white px-2.5 py-1 rounded-lg transition">
+                            전환
+                        </button>
+                    </div>
+
+                    <!-- Temperature Slider -->
+                    <div class="mb-4">
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-slate-300 font-semibold">온도 (T)</span>
+                            <span id="sliderValT" class="text-rose-400 font-mono font-bold">300 K</span>
+                        </div>
+                        <input type="range" id="inputT" min="200" max="600" step="5" value="300"
+                               class="w-full accent-rose-500 bg-slate-700 rounded-lg h-2 cursor-pointer">
+                    </div>
+
+                    <!-- Volume Slider -->
+                    <div class="mb-4">
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-slate-300 font-semibold">용기 부피 (V)</span>
+                            <span id="sliderValV" class="text-cyan-400 font-mono font-bold">5.0 L</span>
+                        </div>
+                        <input type="range" id="inputV" min="1.0" max="10.0" step="0.1" value="5.0"
+                               class="w-full accent-cyan-500 bg-slate-700 rounded-lg h-2 cursor-pointer">
+                    </div>
+
+                    <!-- Speed Slider -->
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-slate-300 font-semibold">시뮬레이션 속도</span>
+                            <span id="sliderValSpeed" class="text-indigo-400 font-mono font-bold">1.0x</span>
+                        </div>
+                        <input type="range" id="inputSpeed" min="0.1" max="3.0" step="0.1" value="1.0"
+                               class="w-full accent-indigo-500 bg-slate-700 rounded-lg h-2 cursor-pointer">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Species Inject/Remove Controls -->
+            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-lg flex flex-col justify-between">
+                <div>
+                    <h3 class="text-sm font-bold text-slate-200 mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-vial-circle-check text-purple-400"></i>
+                        물질 주입 및 제거 (농도 조절)
+                    </h3>
+                    <p class="text-xs text-slate-400 mb-3">각 기체 성분의 몰(mol) 수를 직접 조정합니다.</p>
+
+                    <div class="space-y-2">
+                        <!-- Molecule A -->
+                        <div class="flex items-center justify-between bg-slate-900/60 p-2 rounded-xl border border-slate-700">
+                            <div class="flex items-center gap-2">
+                                <span class="w-3 h-3 rounded-full bg-cyan-400"></span>
+                                <span class="text-xs font-bold text-slate-200">A (반응물)</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button onclick="adjustMol('A', -0.5)" class="w-7 h-7 bg-slate-700 hover:bg-slate-600 rounded-lg text-xs font-bold">-</button>
+                                <span id="molA" class="font-mono text-xs w-10 text-center text-cyan-300">2.0</span>
+                                <button onclick="adjustMol('A', 0.5)" class="w-7 h-7 bg-slate-700 hover:bg-slate-600 rounded-lg text-xs font-bold">+</button>
+                            </div>
+                        </div>
+
+                        <!-- Molecule B -->
+                        <div class="flex items-center justify-between bg-slate-900/60 p-2 rounded-xl border border-slate-700">
+                            <div class="flex items-center gap-2">
+                                <span class="w-3 h-3 rounded-full bg-purple-400"></span>
+                                <span class="text-xs font-bold text-slate-200">B (반응물)</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button onclick="adjustMol('B', -0.5)" class="w-7 h-7 bg-slate-700 hover:bg-slate-600 rounded-lg text-xs font-bold">-</button>
+                                <span id="molB" class="font-mono text-xs w-10 text-center text-purple-300">1.0</span>
+                                <button onclick="adjustMol('B', 0.5)" class="w-7 h-7 bg-slate-700 hover:bg-slate-600 rounded-lg text-xs font-bold">+</button>
+                            </div>
+                        </div>
+
+                        <!-- Molecule C -->
+                        <div class="flex items-center justify-between bg-slate-900/60 p-2 rounded-xl border border-slate-700">
+                            <div class="flex items-center gap-2">
+                                <span class="w-3 h-3 rounded-full bg-amber-400"></span>
+                                <span class="text-xs font-bold text-slate-200">C (생성물)</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button onclick="adjustMol('C', -0.5)" class="w-7 h-7 bg-slate-700 hover:bg-slate-600 rounded-lg text-xs font-bold">-</button>
+                                <span id="molC" class="font-mono text-xs w-10 text-center text-amber-300">1.0</span>
+                                <button onclick="adjustMol('C', 0.5)" class="w-7 h-7 bg-slate-700 hover:bg-slate-600 rounded-lg text-xs font-bold">+</button>
+                            </div>
+                        </div>
+
+                        <!-- Molecule D -->
+                        <div class="flex items-center justify-between bg-slate-900/60 p-2 rounded-xl border border-slate-700">
+                            <div class="flex items-center gap-2">
+                                <span class="w-3 h-3 rounded-full bg-rose-400"></span>
+                                <span class="text-xs font-bold text-slate-200">D (생성물)</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button onclick="adjustMol('D', -0.5)" class="w-7 h-7 bg-slate-700 hover:bg-slate-600 rounded-lg text-xs font-bold">-</button>
+                                <span id="molD" class="font-mono text-xs w-10 text-center text-rose-300">3.0</span>
+                                <button onclick="adjustMol('D', 0.5)" class="w-7 h-7 bg-slate-700 hover:bg-slate-600 rounded-lg text-xs font-bold">+</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <script>
+        // --- Thermodynamic & Kinetic Constants ---
+        const R = 0.08206; // L*atm / (mol*K)
+        const R_Joule = 8.314; // J / (mol*K)
+        const T0 = 300; // Reference Temperature in K
+        const K0 = 1.0; // Reference Equilibrium Constant at 300K
+
+        // State variables
+        let state = {
+            T: 300,            // Temperature (K)
+            V: 5.0,            // Volume (L)
+            nA: 2.0,           // Moles of A
+            nB: 1.0,           // Moles of B
+            nC: 1.0,           // Moles of C
+            nD: 3.0,           // Moles of D
+            deltaH: -25000,    // Enthalpy change in J/mol (-25kJ/mol = Exothermic)
+            isExothermic: true,
+            simSpeed: 1.0,
+            isPaused: false,
+            useLogScale: false
+        };
+
+        // Derived variables
+        let K = 1.0;
+        let Q = 1.0;
+        let pressure = 1.0;
+
+        // Visual Particles Array
+        let particles = [];
+        const speciesColors = {
+            A: '#22d3ee', // Cyan
+            B: '#c084fc', // Purple
+            C: '#fbbf24', // Amber
+            D: '#fb7185'  // Rose
+        };
+
+        // Charts & Canvas References
+        let qkChart, concChart;
+        let particleCanvas, ctx;
+        let chartDataPoints = 0;
+        const maxChartPoints = 60;
+
+        // Initialize Application
+        window.onload = function() {
+            initCanvas();
+            initCharts();
+            setupEventListeners();
+            resetSimulation();
+            requestAnimationFrame(simulationLoop);
+        };
+
+        function computeThermodynamics() {
+            // van 't Hoff Equation: ln(K2/K1) = -deltaH/R * (1/T2 - 1/T1)
+            const exponent = (-state.deltaH / R_Joule) * ((1 / state.T) - (1 / T0));
+            K = K0 * Math.exp(exponent);
+
+            // Concentrations [M] = mol / V
+            const cA = Math.max(state.nA, 1e-4) / state.V;
+            const cB = Math.max(state.nB, 1e-4) / state.V;
+            const cC = Math.max(state.nC, 1e-4) / state.V;
+            const cD = Math.max(state.nD, 1e-4) / state.V;
+
+            // Reaction Quotient Q = ([C] * [D]^3) / ([A]^2 * [B])
+            Q = (cC * Math.pow(cD, 3)) / (Math.pow(cA, 2) * cB);
+
+            // Total Moles & Ideal Gas Pressure P = n_total * R * T / V
+            const nTotal = state.nA + state.nB + state.nC + state.nD;
+            pressure = (nTotal * R * state.T) / state.V;
+        }
+
+        // Kinetic step for continuous reaction integration
+        function stepKinetics(dt) {
+            if (state.isPaused) return;
+
+            computeThermodynamics();
+
+            // Forward and Reverse rate constants
+            const baseRate = 0.008 * state.simSpeed;
+            // Arrhenius factor
+            const arrhenius = Math.exp(-2000 / state.T);
+            
+            const k_forward = baseRate * arrhenius * K;
+            const k_reverse = baseRate * arrhenius;
+
+            const cA = state.nA / state.V;
+            const cB = state.nB / state.V;
+            const cC = state.nC / state.V;
+            const cD = state.nD / state.V;
+
+            // Rates: 2A + B -> C + 3D
+            const r_f = k_forward * Math.pow(cA, 2) * cB;
+            const r_r = k_reverse * cC * Math.pow(cD, 3);
+
+            const netRate = (r_f - r_r) * dt;
+
+            // Update moles: dA = -2*rate, dB = -1*rate, dC = +1*rate, dD = +3*rate
+            if (netRate > 0) {
+                // Forward reaction constrained by available reactants
+                const maxStep = Math.min(state.nA / 2, state.nB, netRate * state.V);
+                state.nA -= 2 * maxStep;
+                state.nB -= 1 * maxStep;
+                state.nC += 1 * maxStep;
+                state.nD += 3 * maxStep;
+            } else if (netRate < 0) {
+                // Reverse reaction constrained by available products
+                const maxStep = Math.min(state.nC, state.nD / 3, -netRate * state.V);
+                state.nA += 2 * maxStep;
+                state.nB += 1 * maxStep;
+                state.nC -= 1 * maxStep;
+                state.nD -= 3 * maxStep;
+            }
+
+            // Enforce minimum bounds
+            state.nA = Math.max(state.nA, 0.05);
+            state.nB = Math.max(state.nB, 0.05);
+            state.nC = Math.max(state.nC, 0.05);
+            state.nD = Math.max(state.nD, 0.05);
+
+            syncParticleCount();
+        }
+
+        function updateUI() {
+            document.getElementById('valQ').innerText = formatNumber(Q);
+            document.getElementById('valK').innerText = formatNumber(K);
+            document.getElementById('valP').innerText = pressure.toFixed(2) + ' atm';
+            document.getElementById('valT').innerText = Math.round(state.T) + ' K';
+            document.getElementById('valV').innerText = state.V.toFixed(1) + ' L';
+
+            document.getElementById('sliderValT').innerText = Math.round(state.T) + ' K';
+            document.getElementById('sliderValV').innerText = state.V.toFixed(1) + ' L';
+            document.getElementById('sliderValSpeed').innerText = state.simSpeed.toFixed(1) + 'x';
+
+            document.getElementById('countA').innerText = state.nA.toFixed(1);
+            document.getElementById('countB').innerText = state.nB.toFixed(1);
+            document.getElementById('countC').innerText = state.nC.toFixed(1);
+            document.getElementById('countD').innerText = state.nD.toFixed(1);
+
+            document.getElementById('molA').innerText = state.nA.toFixed(1);
+            document.getElementById('molB').innerText = state.nB.toFixed(1);
+            document.getElementById('molC').innerText = state.nC.toFixed(1);
+            document.getElementById('molD').innerText = state.nD.toFixed(1);
+
+            // Status Badge Logic (Q vs K comparison)
+            const badge = document.getElementById('statusBadge');
+            const dot = document.getElementById('statusDot');
+            const text = document.getElementById('statusText');
+
+            const ratio = Q / K;
+
+            if (ratio < 0.92) {
+                // Forward Reaction Dominant
+                badge.className = "flex items-center gap-3 px-4 py-2 rounded-xl bg-cyan-950/80 border border-cyan-500/50 transition-all";
+                dot.className = "w-3 h-3 rounded-full bg-cyan-400 animate-ping";
+                text.className = "font-bold text-cyan-300 ml-1";
+                text.innerHTML = '정반응 진행 중 (Q < K) <i class="fa-solid fa-arrow-right ml-1"></i>';
+            } else if (ratio > 1.08) {
+                // Reverse Reaction Dominant
+                badge.className = "flex items-center gap-3 px-4 py-2 rounded-xl bg-rose-950/80 border border-rose-500/50 transition-all";
+                dot.className = "w-3 h-3 rounded-full bg-rose-400 animate-ping";
+                text.className = "font-bold text-rose-300 ml-1";
+                text.innerHTML = '<i class="fa-solid fa-arrow-left mr-1"></i> 역반응 진행 중 (Q > K)';
+            } else {
+                // Dynamic Equilibrium
+                badge.className = "flex items-center gap-3 px-4 py-2 rounded-xl bg-emerald-950/80 border border-emerald-500/50 transition-all";
+                dot.className = "w-3 h-3 rounded-full bg-emerald-400 animate-pulse";
+                text.className = "font-bold text-emerald-400 ml-1";
+                text.innerHTML = '동적 평형 상태 (Q ≒ K) <i class="fa-solid fa-right-left ml-1"></i>';
+            }
+        }
+
+        function formatNumber(num) {
+            if (num > 1000 || num < 0.001) {
+                return num.toExponential(2);
+            }
+            return num.toFixed(3);
+        }
+
+        function initCharts() {
+            const ctxQK = document.getElementById('qkChart').getContext('2d');
+            qkChart = new Chart(ctxQK, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: '반응 지수 (Q)',
+                            data: [],
+                            borderColor: '#818cf8',
+                            backgroundColor: 'rgba(129, 140, 248, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.2,
+                            pointRadius: 0
+                        },
+                        {
+                            label: '평형 상수 (K)',
+                            data: [],
+                            borderColor: '#34d399',
+                            borderDash: [5, 5],
+                            borderWidth: 2,
+                            tension: 0,
+                            pointRadius: 0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: false,
+                    plugins: {
+                        legend: { labels: { color: '#94a3b8', font: { size: 10 } } },
+                        tooltip: { mode: 'index', intersect: false }
+                    },
+                    scales: {
+                        x: { display: false },
+                        y: {
+                            type: 'linear',
+                            ticks: { color: '#94a3b8', font: { size: 9 } },
+                            grid: { color: 'rgba(51, 65, 85, 0.4)' }
+                        }
+                    }
+                }
+            });
+
+            const ctxConc = document.getElementById('concChart').getContext('2d');
+            concChart = new Chart(ctxConc, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        { label: '[A]', data: [], borderColor: speciesColors.A, borderWidth: 1.5, pointRadius: 0, tension: 0.2 },
+                        { label: '[B]', data: [], borderColor: speciesColors.B, borderWidth: 1.5, pointRadius: 0, tension: 0.2 },
+                        { label: '[C]', data: [], borderColor: speciesColors.C, borderWidth: 1.5, pointRadius: 0, tension: 0.2 },
+                        { label: '[D]', data: [], borderColor: speciesColors.D, borderWidth: 1.5, pointRadius: 0, tension: 0.2 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: false,
+                    plugins: {
+                        legend: { labels: { color: '#94a3b8', font: { size: 10 } } }
+                    },
+                    scales: {
+                        x: { display: false },
+                        y: {
+                            title: { display: true, text: '농도 (mol/L)', color: '#64748b', font: { size: 10 } },
+                            ticks: { color: '#94a3b8', font: { size: 9 } },
+                            grid: { color: 'rgba(51, 65, 85, 0.4)' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateCharts() {
+            chartDataPoints++;
+            const label = chartDataPoints.toString();
+
+            // Push Q and K
+            qkChart.data.labels.push(label);
+            qkChart.data.datasets[0].data.push(Q);
+            qkChart.data.datasets[1].data.push(K);
+
+            // Push Concentrations
+            concChart.data.labels.push(label);
+            concChart.data.datasets[0].data.push(state.nA / state.V);
+            concChart.data.datasets[1].data.push(state.nB / state.V);
+            concChart.data.datasets[2].data.push(state.nC / state.V);
+            concChart.data.datasets[3].data.push(state.nD / state.V);
+
+            if (qkChart.data.labels.length > maxChartPoints) {
+                qkChart.data.labels.shift();
+                qkChart.data.datasets.forEach(ds => ds.data.shift());
+
+                concChart.data.labels.shift();
+                concChart.data.datasets.forEach(ds => ds.data.shift());
+            }
+
+            qkChart.update('none');
+            concChart.update('none');
+        }
+
+        function initCanvas() {
+            particleCanvas = document.getElementById('particleCanvas');
+            ctx = particleCanvas.getContext('2d');
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+        }
+
+        function resizeCanvas() {
+            const container = document.getElementById('pistonContainer');
+            particleCanvas.width = container.clientWidth;
+            particleCanvas.height = container.clientHeight;
+        }
+
+        function syncParticleCount() {
+            // Target scale factor (1 mol = ~12 particles)
+            const targetCounts = {
+                A: Math.round(state.nA * 10),
+                B: Math.round(state.nB * 10),
+                C: Math.round(state.nC * 10),
+                D: Math.round(state.nD * 10)
+            };
+
+            ['A', 'B', 'C', 'D'].forEach(type => {
+                const current = particles.filter(p => p.type === type);
+                const diff = targetCounts[type] - current.length;
+
+                if (diff > 0) {
+                    for (let i = 0; i < diff; i++) {
+                        particles.push(createParticle(type));
+                    }
+                } else if (diff < 0) {
+                    let removed = 0;
+                    particles = particles.filter(p => {
+                        if (p.type === type && removed < -diff) {
+                            removed++;
+                            return false;
+                        }
+                        return true;
+                    });
+                }
+            });
+        }
+
+        function createParticle(type) {
+            const w = particleCanvas.width;
+            const h = particleCanvas.height;
+
+            // Top boundary changes with Volume (Piston)
+            const pistonY = h * (1 - (state.V / 10.0));
+
+            return {
+                type: type,
+                x: Math.random() * (w - 20) + 10,
+                y: pistonY + Math.random() * (h - pistonY - 20) + 10,
+                vx: (Math.random() - 0.5) * (state.T / 100),
+                vy: (Math.random() - 0.5) * (state.T / 100),
+                radius: type === 'A' || type === 'B' ? 5 : 4
+            };
+        }
+
+        function drawCanvas() {
+            const w = particleCanvas.width;
+            const h = particleCanvas.height;
+
+            ctx.clearRect(0, 0, w, h);
+
+            // Calculate piston top offset based on Volume (1L ~ 10L)
+            const pistonHeightFraction = state.V / 10.0;
+            const pistonY = h * (1 - pistonHeightFraction);
+
+            // Draw chamber wall background
+            ctx.fillStyle = '#090d16';
+            ctx.fillRect(0, pistonY, w, h - pistonY);
+
+            // Draw Piston Head
+            ctx.fillStyle = '#475569';
+            ctx.fillRect(0, pistonY - 12, w, 12);
+            ctx.fillStyle = '#94a3b8';
+            ctx.fillRect(w / 2 - 15, 0, 30, pistonY - 12); // Piston Rod
+
+            // Draw Piston Pressure Indicator Line
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(0, pistonY);
+            ctx.lineTo(w, pistonY);
+            ctx.stroke();
+
+            // Temperature Visual Background Glow
+            const heatIntensity = Math.min(1.0, (state.T - 200) / 400);
+            ctx.fillStyle = `rgba(239, 68, 68, ${heatIntensity * 0.15})`;
+            ctx.fillRect(0, pistonY, w, h - pistonY);
+
+            // Update & Draw Particles
+            const speedFactor = Math.sqrt(state.T / 300);
+
+            particles.forEach(p => {
+                p.x += p.vx * speedFactor;
+                p.y += p.vy * speedFactor;
+
+                // Bounce walls
+                if (p.x - p.radius < 0) { p.x = p.radius; p.vx *= -1; }
+                if (p.x + p.radius > w) { p.x = w - p.radius; p.vx *= -1; }
+
+                // Bounce bottom
+                if (p.y + p.radius > h) { p.y = h - p.radius; p.vy *= -1; }
+
+                // Bounce piston ceiling
+                if (p.y - p.radius < pistonY) {
+                    p.y = pistonY + p.radius;
+                    p.vy *= -1;
+                }
+
+                // Render particle
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                ctx.fillStyle = speciesColors[p.type];
+                ctx.shadowColor = speciesColors[p.type];
+                ctx.shadowBlur = 6;
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            });
+        }
+
+        function setupEventListeners() {
+            document.getElementById('inputT').addEventListener('input', (e) => {
+                state.T = parseFloat(e.target.value);
+            });
+
+            document.getElementById('inputV').addEventListener('input', (e) => {
+                state.V = parseFloat(e.target.value);
+            });
+
+            document.getElementById('inputSpeed').addEventListener('input', (e) => {
+                state.simSpeed = parseFloat(e.target.value);
+            });
+
+            document.getElementById('btnLogScale').addEventListener('click', () => {
+                state.useLogScale = !state.useLogScale;
+                const btn = document.getElementById('btnLogScale');
+                if (state.useLogScale) {
+                    btn.classList.add('bg-indigo-600');
+                    qkChart.options.scales.y.type = 'logarithmic';
+                } else {
+                    btn.classList.remove('bg-indigo-600');
+                    qkChart.options.scales.y.type = 'linear';
+                }
+                qkChart.update();
+            });
+        }
+
+        function adjustMol(species, delta) {
+            state['n' + species] = Math.max(0.1, state['n' + species] + delta);
+            syncParticleCount();
+        }
+
+        function toggleEnthalpy() {
+            state.isExothermic = !state.isExothermic;
+            state.deltaH = state.isExothermic ? -25000 : 25000;
+
+            const text = document.getElementById('enthalpyText');
+            if (state.isExothermic) {
+                text.innerText = "발열 반응 (ΔH < 0)";
+                text.className = "text-rose-400 font-semibold ml-1";
+            } else {
+                text.innerText = "흡열 반응 (ΔH > 0)";
+                text.className = "text-cyan-400 font-semibold ml-1";
+            }
+        }
+
+        function togglePause() {
+            state.isPaused = !state.isPaused;
+            const btnText = document.getElementById('pauseText');
+            const icon = document.getElementById('pauseIcon');
+
+            if (state.isPaused) {
+                btnText.innerText = "재개";
+                icon.className = "fa-solid fa-play";
+            } else {
+                btnText.innerText = "일시정지";
+                icon.className = "fa-solid fa-pause";
+            }
+        }
+
+        function applyPreset(type) {
+            switch (type) {
+                case 'addA':
+                    state.nA += 3.0;
+                    break;
+                case 'addD':
+                    state.nD += 5.0;
+                    break;
+                case 'compress':
+                    state.V = Math.max(1.0, state.V / 2.0);
+                    document.getElementById('inputV').value = state.V;
+                    break;
+                case 'expand':
+                    state.V = Math.min(10.0, state.V * 2.0);
+                    document.getElementById('inputV').value = state.V;
+                    break;
+                case 'heat':
+                    state.T = Math.min(600, state.T + 120);
+                    document.getElementById('inputT').value = state.T;
+                    break;
+                case 'cool':
+                    state.T = Math.max(200, state.T - 100);
+                    document.getElementById('inputT').value = state.T;
+                    break;
+            }
+            syncParticleCount();
+        }
+
+        function resetSimulation() {
+            state.T = 300;
+            state.V = 5.0;
+            state.nA = 2.0;
+            state.nB = 1.0;
+            state.nC = 1.0;
+            state.nD = 3.0;
+            state.isPaused = false;
+
+            document.getElementById('inputT').value = 300;
+            document.getElementById('inputV').value = 5.0;
+            document.getElementById('inputSpeed').value = 1.0;
+
+            particles = [];
+            syncParticleCount();
+
+            qkChart.data.labels = [];
+            qkChart.data.datasets.forEach(ds => ds.data = []);
+            concChart.data.labels = [];
+            concChart.data.datasets.forEach(ds => ds.data = []);
+            chartDataPoints = 0;
+        }
+
+        let lastTime = performance.now();
+        let chartTimer = 0;
+
+        function simulationLoop(now) {
+            const dt = Math.min(0.1, (now - lastTime) / 1000);
+            lastTime = now;
+
+            stepKinetics(dt);
+            drawCanvas();
+            updateUI();
+
+            // Update graphs every 0.25 seconds
+            chartTimer += dt;
+            if (chartTimer >= 0.25) {
+                updateCharts();
+                chartTimer = 0;
+            }
+
+            requestAnimationFrame(simulationLoop);
+        }
+    </script>
+</body>
+</html>
